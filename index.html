@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Layout Cisco 2960 — Portas com LED </title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #111827;
+    --card: #1f2937;
+    --text: #e5e7eb;
+    --muted: #9ca3af;
+    --accent: #22d3ee;
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --border: #374151;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans";
+    background: linear-gradient(180deg, #0f172a 0%, #0b1220 100%);
+    color: var(--text);
+  }
+  header {
+    padding: 18px 21px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(17,24,39,0.6);
+    position: sticky;
+    top: 0;
+    backdrop-filter: blur(6px);
+    z-index: 10;
+  }
+  header h1 { margin: 0 0 6px 0; font-size: 20px; letter-spacing: 0.2px; }
+  header p { margin: 0; color: var(--muted); font-size: 13px; }
+
+  .container { max-width: 1100px; margin: 20px auto 60px; padding: 0 1px; }
+
+  .controls, .stats, .help {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .controls-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+  label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px; }
+  select, input[type="text"] {
+    background: var(--card); color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px; min-width: 180px; outline: none;
+  }
+  button { background: var(--accent); color: #07252b; border: none; border-radius: 8px; padding: 10px 14px; cursor: pointer; font-weight: 600; }
+  button.secondary { background: #0ea5e9; color: #062033; }
+  button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .controls small { color: var(--muted); display: block; margin-top: 6px; }
+
+  .switch-chassis {
+    background: linear-gradient(180deg, #151b28, #101624);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+  }
+  .chassis-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 10px; border-radius: 8px;
+    background: #0b1220; color: var(--muted);
+    border: 1px solid var(--border); font-size: 12px;
+  }
+  .power-led {
+    width: 10px; height: 10px; border-radius: 50%;
+    box-shadow: 0 0 10px rgba(34,197,94,0.6);
+    background: var(--green); border: 1px solid #0a2b16;
+  }
+
+  /* === GRID: no máximo 5 portas por linha === */
+  .ports-grid {
+    display: grid;
+    gap: 10px;
+  }
+  .ports-grid-5 { grid-template-columns: repeat(5, 1fr); }
+  /* Responsivo: reduz colunas em telas menores, mas nunca passa de 5 */
+  @media (max-width: 900px) { .ports-grid-5 { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 600px) { .ports-grid-5 { grid-template-columns: repeat(2, 1fr); } }
+
+  .port {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px;
+    display: grid;
+    grid-template-rows: auto auto auto;
+    gap: 6px;
+    transition: border-color 0.2s ease;
+  }
+  .port:hover { border-color: #4b5563; }
+  .port-top { display: flex; align-items: center; justify-content: space-between; }
+  .port-num { font-weight: 700; font-size: 13px; color: var(--muted); }
+  .led {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 1px solid #0a0a0a;
+    box-shadow: inset 0 0 5px rgba(0,0,0,0.7);
+    cursor: pointer;
+  }
+  .led.green { background: radial-gradient(circle at 30% 30%, #7cff9f, #22c55e 60%, #15803d 100%); box-shadow: 0 0 10px rgba(34,197,94,0.8); }
+  .led.red   { background: radial-gradient(circle at 30% 30%, #ffb4b4, #ef4444 60%, #991b1b 100%); box-shadow: 0 0 10px rgba(239,68,68,0.7); }
+
+  .port-middle { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+  .rj45 {
+    width: 34px; height: 16px; background: #0b1220;
+    border: 1px solid #0f172a; border-radius: 3px; position: relative;
+  }
+  .rj45:before {
+    content: ""; position: absolute; top: 2px; left: 3px; right: 3px; height: 3px;
+    background: linear-gradient(90deg, #223 0, #334 50%, #223 100%); border-radius: 2px;
+  }
+  .port-desc {
+    width: 100%; background: #0f172a; color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; font-size: 12px;
+  }
+
+  .stats { font-size: 13px; color: var(--muted); }
+  .help code {
+    background: #0b1220; border: 1px solid var(--border);
+    color: #cffafe; padding: 2px 6px; border-radius: 6px;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Cisco Catalyst 2960 — Painel de Portas </h1>
+    <p>Clique no LED para alternar <strong>Ativa (verde)</strong> / <strong>Inativa (vermelho)</strong>. Carregue um arquivo TXT para preencher descrições e status.</p>
+  </header>
+
+  <div class="container">
+    <div class="controls">
+      <div class="controls-row">
+        <div>
+          <label for="modelo">Modelo / Quantidade de portas</label>
+          <select id="modelo">
+            <option value="24" selected>2960 — 24 portas</option>
+            <option value="48">2960 — 48 portas</option>
+          </select>
+          <small>As portas são exibidas em linhas com até 5 portas.</small>
+        </div>
+
+        <div>
+          <label>Carregar descrições (.txt/.csv)</label>
+          <input id="fileInput" type="file" accept=".txt,.csv" />
+          <small>Formato: <code>porta;descricao;status</code> — status opcional (UP/ON = verde; DOWN/OFF = vermelho)</small>
+        </div>
+
+        <div style="display:flex; gap:8px; align-items:flex-end;">
+          <button id="exportBtn" class="secondary">Exportar TXT</button>
+          <button id="resetBtn" class="ghost">Resetar tudo</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="switch-chassis">
+      <div class="chassis-header">
+        <div class="badge"><strong>Cisco</strong> Catalyst 2960</div>
+        <div class="badge" title="Power"><span style="font-weight:600;">PWR</span><span class="power-led"></span></div>
+      </div>
+
+      <div id="portsGrid" class="ports-grid ports-grid-5" aria-live="polite"></div>
+    </div>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="help">
+      <h3>Formato do arquivo TXT/CSV</h3>
+      <p>Você pode usar <code>;</code>, <code>,</code>, <code>:</code> ou <em>tab</em> como separador. Linhas inválidas são ignoradas.</p>
+      <pre style="white-space:pre-wrap;background:#0b1220;border:1px solid var(--border);padding:10px;border-radius:10px;color:#d1fae5;">
+1;Uplink Core;UP
+2;AP-Recepção;UP
+3;Câmera-01;DOWN
+4;Sala de Reunião;ON
+5;Livre;OFF
+      </pre>
+      <p><strong>Campos:</strong> porta (1..24/48) | descrição | status opcional: <code>UP/ON/ATIVA</code> (verde) ou <code>DOWN/OFF/INATIVA</code> (vermelho)</p>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const portsGrid = document.getElementById('portsGrid');
+  const modeloSel = document.getElementById('modelo');
+  const fileInput = document.getElementById('fileInput');
+  const exportBtn = document.getElementById('exportBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const statsEl   = document.getElementById('stats');
+
+  // Estado
+  let portCount = 24;
+  /** { id: number, desc: string, up: boolean } */
+  let ports = [];
+
+  function initPorts(count) {
+    portCount = count;
+    ports = Array.from({ length: portCount }, (_, i) => ({ id: i + 1, desc: '', up: false }));
+    render();
+  }
+
+  function render() {
+    portsGrid.innerHTML = '';
+    for (const p of ports) {
+      const card = document.createElement('div');
+      card.className = 'port';
+      card.setAttribute('data-port', String(p.id));
+      card.title = p.desc ? `Porta ${p.id}: ${p.desc}` : `Porta ${p.id}`;
+
+      const top = document.createElement('div');
+      top.className = 'port-top';
+      const num = document.createElement('div');
+      num.className = 'port-num';
+      num.textContent = `Gi0/${p.id}`;
+      const led = document.createElement('div');
+      led.className = `led ${p.up ? 'green' : 'red'}`;
+      led.setAttribute('role', 'button');
+      led.setAttribute('aria-label', `Porta ${p.id} ${p.up ? 'ativa' : 'inativa'}`);
+      led.addEventListener('click', () => togglePort(p.id));
+      top.appendChild(num);
+      top.appendChild(led);
+
+      const mid = document.createElement('div');
+      mid.className = 'port-middle';
+      const rj = document.createElement('div');
+      rj.className = 'rj45';
+      const txt = document.createElement('div');
+      txt.textContent = p.up ? 'Link: ATIVO' : 'Link: INATIVO';
+      txt.style.color = p.up ? 'var(--green)' : 'var(--red)';
+      mid.appendChild(rj);
+      mid.appendChild(txt);
+
+      const input = document.createElement('input');
+      input.className = 'port-desc';
+      input.type = 'text';
+      input.placeholder = 'Descrição da porta (ex: AP-01, Câmera, PC-Recepção)';
+      input.value = p.desc;
+      input.addEventListener('input', (e) => {
+        p.desc = e.target.value;
+        card.title = p.desc ? `Porta ${p.id}: ${p.desc}` : `Porta ${p.id}`;
+        updateStats();
+      });
+
+      card.appendChild(top);
+      card.appendChild(mid);
+      card.appendChild(input);
+      portsGrid.appendChild(card);
+    }
+    updateStats();
+  }
+
+  function togglePort(id) {
+    const p = ports.find(x => x.id === id);
+    if (!p) return;
+    p.up = !p.up;
+    const card = portsGrid.querySelector(`.port[data-port="${id}"]`);
+    if (!card) return;
+    const led = card.querySelector('.led');
+    const linkTxt = card.querySelector('.port-middle div:nth-child(2)');
+    led.classList.toggle('green', p.up);
+    led.classList.toggle('red', !p.up);
+    led.setAttribute('aria-label', `Porta ${p.id} ${p.up ? 'ativa' : 'inativa'}`);
+    linkTxt.textContent = p.up ? 'Link: ATIVO' : 'Link: INATIVO';
+    linkTxt.style.color = p.up ? 'var(--green)' : 'var(--red)';
+    updateStats();
+  }
+
+  function updateStats() {
+    const up = ports.filter(p => p.up).length;
+    const withDesc = ports.filter(p => p.desc.trim() !== '').length;
+    statsEl.innerHTML = `
+      <strong>Resumo:</strong>
+      Portas: <strong>${ports.length}</strong> |
+      Ativas (LED verde): <strong style="color:var(--green)">${up}</strong> |
+      Com descrição: <strong>${withDesc}</strong>
+    `;
+  }
+
+  function parseStatusToken(tokenRaw) {
+    if (!tokenRaw) return null;
+    const t = tokenRaw.trim().toLowerCase();
+    if (['up','on','ativa','ativada','link','yes','true','1'].includes(t)) return true;
+    if (['down','off','inativa','desligada','no','false','0'].includes(t)) return false;
+    return null;
+  }
+
+  function loadFromText(text) {
+    const lines = text.split(/\r?\n/);
+    let applied = 0, skipped = 0;
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line || line.startsWith('#') || line.startsWith('//')) continue;
+      const parts = line.split(/\s*[;,:|\t]\s*/);
+      if (parts.length < 2) { skipped++; continue; }
+
+      const portId = parseInt(parts[0], 10);
+      if (!Number.isFinite(portId) || portId < 1 || portId > portCount) { skipped++; continue; }
+
+      const desc = (parts[1] || '').trim();
+      const statusTok = parts[2] || '';
+      const upParsed = parseStatusToken(statusTok);
+
+      const p = ports.find(x => x.id === portId);
+      if (!p) { skipped++; continue; }
+
+      p.desc = desc;
+      if (upParsed !== null) p.up = upParsed;
+      applied++;
+    }
+    render();
+    alert(`Importação concluída:\nAplicadas: ${applied}\nIgnoradas: ${skipped}`);
+  }
+
+  function exportToText() {
+    const lines = ports.map(p => `${p.id};${(p.desc || '').replace(/[\r\n]/g,' ').trim()};${p.up ? 'UP' : 'DOWN'}`);
+    const blob = new Blob([lines.join('\n') + '\n'], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+    a.href = url;
+    a.download = `cisco-2960-portas-${portCount}p-${stamp}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  // Eventos
+  modeloSel.addEventListener('change', () => {
+    const n = parseInt(modeloSel.value, 10);
+    const snapshot = ports.slice(0, n).map(p => ({ ...p }));
+    initPorts(n);
+    for (let i = 0; i < Math.min(snapshot.length, ports.length); i++) {
+      ports[i].desc = snapshot[i].desc;
+      ports[i].up   = snapshot[i].up;
+    }
+    render();
+  });
+
+  fileInput.addEventListener('change', () => {
+    const f = fileInput.files && fileInput.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => loadFromText(String(reader.result || ''));
+    reader.readAsText(f, 'utf-8');
+    fileInput.value = '';
+  });
+
+  exportBtn.addEventListener('click', exportToText);
+  resetBtn.addEventListener('click', () => {
+    if (!confirm('Deseja resetar todas as portas para INATIVO (vermelho) e limpar descrições?')) return;
+    ports.forEach(p => { p.up = false; p.desc = ''; });
+    render();
+  });
+
+  // Inicializa
+  initPorts(24);
+})();
+</script>
+</body>
+</html>
