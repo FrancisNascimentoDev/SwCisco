@@ -244,6 +244,33 @@
   color:var(--muted);
 }
 
+/* =================== Botão Flutuante Suporte =================== */
+.floating-support-btn{
+  position:fixed;
+  bottom:20px;
+  right:20px;
+  width:56px;
+  height:56px;
+  border-radius:50%;
+  background: linear-gradient(135deg, #25d366, #20ba5a);
+  border:none;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:28px;
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4);
+  z-index:40;
+  transition:all 0.3s ease;
+}
+.floating-support-btn:hover{
+  transform:scale(1.1);
+  box-shadow: 0 6px 20px rgba(37, 211, 102, 0.6);
+}
+.floating-support-btn:active{
+  transform:scale(0.95);
+}
+
 </style>
 </head>
 <body>
@@ -1174,6 +1201,15 @@ window.addEventListener('beforeunload', function (e) {
 <script>
   document.querySelectorAll('.year').forEach(y=>y.textContent=new Date().getFullYear());
 </script>
+
+<!-- Botão Flutuante de Suporte -->
+<a href="https://api.whatsapp.com/send?phone=5521964488719&text=Ol%C3%A1%2C%20tudo%20bem%3F%0A%0AEstou%20solicitando%20suporte%20t%C3%A9cnico%20referente%20ao%20sistema%20InfraControl%2C%0Autlizado%20para%20gest%C3%A3o%20de%20Telecom%2C%20Redes%2C%20CFTV%20e%20VoIP.%0A%0AFico%20no%20aguardo%20para%20repassar%20os%20detalhes%20do%20chamado." 
+   target="_blank" 
+   rel="noopener noreferrer" 
+   class="floating-support-btn" 
+   title="Contato de Suporte via WhatsApp">
+  💬
+</a>
 
 </body>
 </html>
