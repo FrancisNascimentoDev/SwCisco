@@ -3,366 +3,1175 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Layout Cisco 2960 — Portas com LED </title>
+<title>Rack com 7 Switches — Cisco 2960 (Logs Internos + Backup Automático)</title>
 <style>
-  :root {
+  /* =================== Tokens =================== */
+  :root{
     --bg: #0f172a;
-    --panel: #111827;
-    --card: #1f2937;
+    --panel: #0c1220;
+    --card: #162134;
+    --face: #1f2937;
     --text: #e5e7eb;
-    --muted: #9ca3af;
-    --accent: #22d3ee;
-    --green: #22c55e;
-    --red: #ef4444;
-    --yellow: #f59e0b;
-    --border: #374151;
+    --muted:#9ca3af;
+    --accent:#22d3ee;
+    --green:#22c55e;
+    --red:#ef4444;
+    --border:#334155;
+    --ring:#60a5fa;
+    --shadow: 0 1px 2px rgba(0,0,0,.2), 0 10px 30px rgba(0,0,0,.35);
+    --radius: 12px;
+    --gap: 10px;
+    --t-xs: clamp(11px, .8vw, 12px);
+    --t-sm: clamp(12px, .9vw, 13px);
+    --t-md: clamp(14px, 1.2vw, 16px);
+    --t-lg: clamp(16px, 2vw, 22px);
+    --led: 16px;
   }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans";
-    background: linear-gradient(180deg, #0f172a 0%, #0b1220 100%);
-    color: var(--text);
+  @media(prefers-color-scheme: light){
+    :root{
+      --bg:#f7fafc; --panel:#eef2f7; --card:#ffffff; --face:#e5eaf1;
+      --text:#0b1220; --muted:#475569; --border:#d1d5db; --accent:#0284c7;
+      --green:#16a34a; --red:#dc2626; --ring:#2563eb; --shadow:0 1px 2px rgba(0,0,0,.08), 0 10px 30px rgba(0,0,0,.12);
+    }
   }
-  header {
-    padding: 18px 21px;
-    border-bottom: 1px solid var(--border);
-    background: rgba(17,24,39,0.6);
-    position: sticky;
-    top: 0;
+  *{box-sizing:border-box}
+  body{
+    margin:0; background: linear-gradient(180deg, var(--bg), color-mix(in oklab, var(--bg) 85%, black 15%));
+    color:var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; font-size: var(--t-md);
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{ transition-duration:.01ms !important; animation-duration:.01ms !important; }
+  }
+  header{
+    position:sticky; top:0; z-index:10; padding:16px;
+    border-bottom:1px solid var(--border);
+    background: color-mix(in oklab, var(--panel) 78%, transparent);
     backdrop-filter: blur(6px);
-    z-index: 10;
   }
-  header h1 { margin: 0 0 6px 0; font-size: 20px; letter-spacing: 0.2px; }
-  header p { margin: 0; color: var(--muted); font-size: 13px; }
+  header h1{ margin:0 0 6px 0; font-size: var(--t-lg); }
+  header p{ margin:0; color:var(--muted); font-size: var(--t-sm); }
 
-  .container { max-width: 1100px; margin: 20px auto 60px; padding: 0 1px; }
+  .container{ max-width:1200px; margin:16px auto 64px; padding:0 12px; }
 
-  .controls, .stats, .help {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 16px;
-    margin-bottom: 16px;
+  /* =================== Barra de ações =================== */
+  .actions{
+    background: var(--panel); border:1px solid var(--border); border-radius: var(--radius);
+    padding:12px; margin-bottom:12px; box-shadow: var(--shadow);
   }
-  .controls-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
-  label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px; }
-  select, input[type="text"] {
-    background: var(--card); color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 10px 12px; min-width: 180px; outline: none;
+  .actions-row{
+    display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:space-between;
   }
-  button { background: var(--accent); color: #07252b; border: none; border-radius: 8px; padding: 10px 14px; cursor: pointer; font-weight: 600; }
-  button.secondary { background: #0ea5e9; color: #062033; }
-  button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
-  .controls small { color: var(--muted); display: block; margin-top: 6px; }
+  .btn{
+    background: var(--accent); color:#062033; border:none; border-radius:10px;
+    padding:10px 14px; cursor:pointer; font-weight:800;
+  }
+  .btn.ghost{ background:transparent; color:var(--muted); border:1px solid var(--border); }
 
-  .switch-chassis {
-    background: linear-gradient(180deg, #151b28, #101624);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 18px;
+  /* =================== Rack Visual =================== */
+  .rack-wrap{
+    background: linear-gradient(180deg, color-mix(in oklab, var(--panel) 85%, black 10%), var(--panel));
+    border:1px solid var(--border); border-radius: var(--radius);
+    padding:16px; box-shadow: var(--shadow);
   }
-  .chassis-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-  .badge {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 8px 10px; border-radius: 8px;
-    background: #0b1220; color: var(--muted);
-    border: 1px solid var(--border); font-size: 12px;
+  .rack{
+    position:relative; display:grid; gap:8px;
+    grid-template-columns: 1fr;
   }
-  .power-led {
-    width: 10px; height: 10px; border-radius: 50%;
-    box-shadow: 0 0 10px rgba(34,197,94,0.6);
-    background: var(--green); border: 1px solid #0a2b16;
+  .rail{
+    position:absolute; top:0; bottom:0; width:18px; background: #0b0f1a;
+    border:1px solid #11172a; border-radius:8px;
   }
+  .rail.left{ left:-8px; }
+  .rail.right{ right:-8px; }
 
-  /* === GRID: no máximo 5 portas por linha === */
-  .ports-grid {
-    display: grid;
-    gap: 10px;
+  .rack-unit{
+    display:flex; align-items:center; justify-content:stretch;
+    background: linear-gradient(180deg, #151e2f, #0f1828);
+    border:1px solid #0b1323; border-radius:10px; padding:6px 10px;
+    outline:none; cursor:pointer; box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+    transition: transform .08s ease, border-color .15s;
   }
-  .ports-grid-5 { grid-template-columns: repeat(5, 1fr); }
-  /* Responsivo: reduz colunas em telas menores, mas nunca passa de 5 */
-  @media (max-width: 900px) { .ports-grid-5 { grid-template-columns: repeat(3, 1fr); } }
-  @media (max-width: 600px) { .ports-grid-5 { grid-template-columns: repeat(2, 1fr); } }
+  .rack-unit:focus{ border-color: var(--ring); box-shadow: 0 0 0 4px color-mix(in oklab, var(--ring) 35%, transparent); }
+  .rack-unit:hover{ transform: translateY(-1px); }
 
-  .port {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 10px;
-    display: grid;
-    grid-template-rows: auto auto auto;
-    gap: 6px;
-    transition: border-color 0.2s ease;
+  .faceplate{
+    width:100%; background: var(--face); border:1px solid #101826; border-radius:6px;
+    padding:8px; display:grid; grid-template-columns: auto 1fr auto; gap:10px; align-items:center;
   }
-  .port:hover { border-color: #4b5563; }
-  .port-top { display: flex; align-items: center; justify-content: space-between; }
-  .port-num { font-weight: 700; font-size: 13px; color: var(--muted); }
-  .led {
-    width: 14px; height: 14px; border-radius: 50%;
-    border: 1px solid #0a0a0a;
-    box-shadow: inset 0 0 5px rgba(0,0,0,0.7);
-    cursor: pointer;
-  }
-  .led.green { background: radial-gradient(circle at 30% 30%, #7cff9f, #22c55e 60%, #15803d 100%); box-shadow: 0 0 10px rgba(34,197,94,0.8); }
-  .led.red   { background: radial-gradient(circle at 30% 30%, #ffb4b4, #ef4444 60%, #991b1b 100%); box-shadow: 0 0 10px rgba(239,68,68,0.7); }
+  .brand{ color:var(--muted); font-size: var(--t-xs); font-weight:700; letter-spacing:.3px; }
 
-  .port-middle { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
-  .rj45 {
-    width: 34px; height: 16px; background: #0b1220;
-    border: 1px solid #0f172a; border-radius: 3px; position: relative;
+  .front-ports{
+    display:grid; gap:4px; grid-template-columns: repeat(24, 1fr);
   }
-  .rj45:before {
-    content: ""; position: absolute; top: 2px; left: 3px; right: 3px; height: 3px;
-    background: linear-gradient(90deg, #223 0, #334 50%, #223 100%); border-radius: 2px;
-  }
-  .port-desc {
-    width: 100%; background: #0f172a; color: var(--text);
-    border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; font-size: 12px;
+  .fp{
+    width:10px; height:8px; background: #0a0f18; border:1px solid #0e1727; border-radius:2px;
   }
 
-  .stats { font-size: 13px; color: var(--muted); }
-  .help code {
-    background: #0b1220; border: 1px solid var(--border);
-    color: #cffafe; padding: 2px 6px; border-radius: 6px;
+  /* SFPs na face do rack */
+  .sfp-face{
+    display:grid; gap:6px;
+    grid-template-columns: repeat(2, minmax(18px, 22px)); /* até 4, adaptável */
+    align-items:center; justify-items:center;
   }
+  .sfp-slot{
+    width:22px; height:12px; background:#0a1018; border:1px solid #182236; border-radius:2px; position:relative;
+  }
+  .sfp-slot:before{
+    content:""; position:absolute; inset:2px 3px 2px 3px; border:1px dashed #2a3a55; border-radius:2px;
+  }
+
+  .status-area{
+    display:flex; align-items:center; gap:10px;
+  }
+  .st-led{ width:8px; height:8px; border-radius:50%; background:#1a2a1a; border:1px solid #0a2a0f; box-shadow: 0 0 6px rgba(34,197,94,.5); }
+  .lcd{
+    width:66px; height:24px; background: #1b2f1a; border:1px solid #234; border-radius:4px;
+    display:flex; align-items:center; justify-content:center; color:#cde6cd; font-size:10px;
+  }
+  .unit-label{
+    margin-left:8px; color:#cbd5e1; font-size: var(--t-sm); font-weight:700;
+  }
+
+  /* =================== Modal =================== */
+  .modal{
+    position: fixed; inset:0; display:none; align-items:center; justify-content:center;
+    background: rgba(0,0,0,.55); z-index:50; padding:16px;
+  }
+  .modal.show{ display:flex; }
+  .dialog{
+    width:min(100%, 1100px); max-height: 90vh; overflow:auto;
+    background: linear-gradient(180deg, color-mix(in oklab, var(--panel) 70%, black 5%), var(--panel));
+    border:1px solid var(--border); border-radius:16px; box-shadow: var(--shadow);
+    padding:16px;
+  }
+  .dialog-header{ display:flex; gap:10px; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .dialog-title{ margin:0; font-size: var(--t-lg); }
+  .close-btn{
+    background: transparent; color: var(--muted); border:1px solid var(--border);
+    padding:8px 10px; border-radius:10px; cursor:pointer; font-weight:700;
+  }
+
+  /* =================== Controles do painel =================== */
+  .controls{
+    background: var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:12px; margin-bottom:12px;
+  }
+  .controls-grid{ display:grid; gap:10px; grid-template-columns: 1fr; }
+  @media (min-width: 760px){ .controls-grid{ grid-template-columns: repeat(4, minmax(0, 1fr)); align-items:end; } }
+  label{ font-size: var(--t-xs); color: var(--muted); display:block; margin-bottom:6px; }
+  select, input[type="file"]{
+    width:100%; background: var(--face); color: var(--text); border:1px solid var(--border);
+    border-radius:10px; padding:10px 12px; outline:none;
+  }
+  select:focus, input:focus{ border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 30%, transparent); }
+
+  /* =================== Grids de portas =================== */
+  .section-title{ margin: 18px 0 8px 0; font-size: var(--t-md); font-weight:800; color: var(--muted); }
+
+  /* RJ45: máx 5 por linha no desktop */
+  .ports-grid{
+    display:grid; gap: var(--gap);
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+  @media (min-width: 480px){ .ports-grid{ grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 700px){ .ports-grid{ grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 900px){ .ports-grid{ grid-template-columns: repeat(4, 1fr); } }
+  @media (min-width: 1200px){ .ports-grid{ grid-template-columns: repeat(5, 1fr); } } /* máx 5 */
+
+  .port-card{
+    background: var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:10px; display:grid; grid-template-rows:auto auto auto; gap:8px;
+  }
+  .port-top{ display:flex; align-items:center; justify-content:space-between; }
+  .pnum{ font-weight:800; font-size: var(--t-sm); color: var(--muted); }
+  .led{
+    width: var(--led); height: var(--led); border-radius:50%;
+    border:1px solid #0a0a0a; cursor:pointer;
+    box-shadow: inset 0 0 5px rgba(0,0,0,.7);
+  }
+  .led:focus{ outline:none; box-shadow: 0 0 0 4px color-mix(in oklab, var(--ring) 35%, transparent); }
+  .led.green{ background: radial-gradient(circle at 30% 30%, #7cff9f, var(--green) 60%, color-mix(in oklab, var(--green) 60%, black)); box-shadow: 0 0 10px color-mix(in oklab, var(--green) 60%, transparent); }
+  .led.red{ background: radial-gradient(circle at 30% 30%, #ffb4b4, var(--red) 60%, color-mix(in oklab, var(--red) 60%, black)); box-shadow: 0 0 10px color-mix(in oklab, var(--red) 60%, transparent); }
+
+  .port-mid{ display:flex; align-items:center; gap:10px; color: var(--muted); font-size: var(--t-sm); }
+  .rj45{ width:38px; height:18px; background:#0b1220; border:1px solid #0f172a; border-radius:3px; position:relative; }
+  .rj45:before{ content:""; position:absolute; top:2px; left:3px; right:3px; height:3px; background: linear-gradient(90deg, #223, #334, #223); border-radius:2px; }
+  .pdesc{
+    width:100%; background: color-mix(in oklab, var(--card) 70%, black 10%); color: var(--text);
+    border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size: var(--t-sm);
+  }
+
+  /* SFP cards */
+  .sfp-grid{
+    display:grid; gap: var(--gap);
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+  .sfp-card{
+    background: var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:10px; display:grid; grid-template-rows:auto auto auto; gap:8px;
+  }
+  .sfp-mid{ display:flex; align-items:center; gap:10px; color: var(--muted); font-size: var(--t-sm); }
+  .sfp-icon{ width:52px; height:18px; background:#0a1018; border:1px solid #182236; border-radius:3px; position:relative; }
+  .sfp-icon:before{ content:""; position:absolute; inset:2px 3px; border:1px dashed #2a3a55; border-radius:2px; }
+
+  .stats{ font-size: var(--t-sm); color: var(--muted); margin-top:8px; }
+
+  /* Logs UI */
+  details.logs{
+    background: var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px; margin-top:12px;
+  }
+  details.logs summary{ cursor:pointer; font-weight:800; color:var(--muted); }
+  .logline{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 12px; white-space: pre; }
+
+.app-footer{
+  margin-top:24px;
+  padding:12px;
+  text-align:center;
+  font-size:12px;
+  color:var(--muted);
+  border-top:1px solid var(--border);
+  background:color-mix(in oklab, var(--panel) 85%, transparent);
+}
+
+
+.system-info{
+  margin-bottom:12px;
+  padding:12px;
+  border:1px dashed var(--border);
+  border-radius:10px;
+  background:color-mix(in oklab, var(--panel) 90%, transparent);
+  font-size:12px;
+  color:var(--muted);
+}
+
 </style>
 </head>
 <body>
   <header>
-    <h1>Cisco Catalyst 2960 — Painel de Portas </h1>
-    <p>Clique no LED para alternar <strong>Ativa (verde)</strong> / <strong>Inativa (vermelho)</strong>. Carregue um arquivo TXT para preencher descrições e status.</p>
+    <h1>Rack com 7 Switches — Cisco 2960</h1>
+    <p>Clique em um switch para abrir o painel (RJ45 + SFP). Configure 24/48 e 0/2/4 SFPs. Logs e Backups são salvos internamente (pasta do sistema). Exportações disponíveis.</p>
   </header>
 
   <div class="container">
-    <div class="controls">
-      <div class="controls-row">
-        <div>
-          <label for="modelo">Modelo / Quantidade de portas</label>
-          <select id="modelo">
-            <option value="24" selected>2960 — 24 portas</option>
-            <option value="48">2960 — 48 portas</option>
-          </select>
-          <small>As portas são exibidas em linhas com até 5 portas.</small>
-        </div>
+    
+<div class="system-info">
+  <strong>📂 Armazenamento do Sistema</strong><br>
+  Logs: <span id="logInfo">-</span><br>
+  Backups: <span id="backupInfo">-</span><br>
+  Local: <code>localStorage do navegador</code>
+</div>
 
-        <div>
-          <label>Carregar descrições (.txt/.csv)</label>
-          <input id="fileInput" type="file" accept=".txt,.csv" />
-          <small>Formato: <code>porta;descricao;status</code> — status opcional (UP/ON = verde; DOWN/OFF = vermelho)</small>
+<div class="actions">
+      <div class="actions-row">
+        <div style="color:var(--muted); font-size: var(--t-sm);">
+          Estados, <strong>Logs</strong> (<code>/logs</code>) e <strong>Backups</strong> (<code>/backups</code>) são mantidos dentro da pasta do sistema (persistência do navegador).
         </div>
-
-        <div style="display:flex; gap:8px; align-items:flex-end;">
-          <button id="exportBtn" class="secondary">Exportar TXT</button>
-          <button id="resetBtn" class="ghost">Resetar tudo</button>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn" id="btnExportAllInventory" type="button">Exportar Inventário (Geral)</button>
+          <button class="btn" id="btnExportAllLogs" type="button">Exportar Logs (Geral)</button>
+          <button class="btn" id="btnExportAllBackups" type="button" title="Exporta todos os snapshots em um JSON único">Exportar Backups (Geral)</button>
+          <button class="btn ghost" id="btnClearAll" type="button">Limpar estado salvo (todos)</button>
+          <button class="btn ghost" id="btnClearAllLogs" type="button">Limpar logs (todos)</button>
+          <button class="btn ghost" id="btnClearAllBackups" type="button">Limpar backups (todos)</button>
         </div>
       </div>
     </div>
 
-    <div class="switch-chassis">
-      <div class="chassis-header">
-        <div class="badge"><strong>Cisco</strong> Catalyst 2960</div>
-        <div class="badge" title="Power"><span style="font-weight:600;">PWR</span><span class="power-led"></span></div>
+    <div class="rack-wrap">
+      <div class="rack" id="rack">
+        <div class="rail left" aria-hidden="true"></div>
+        <div class="rail right" aria-hidden="true"></div>
+        <!-- Unidades do rack geradas via JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal" id="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Painel de portas do switch">
+    <div class="dialog">
+      <div class="dialog-header">
+        <h2 class="dialog-title" id="dialogTitle">Switch</h2>
+        <button class="close-btn" id="closeModal" type="button" aria-label="Fechar painel">Fechar ✕</button>
       </div>
 
-      <div id="portsGrid" class="ports-grid ports-grid-5" aria-live="polite"></div>
-    </div>
+      <div class="controls" role="region" aria-label="Controles do painel">
+        <div class="controls-grid">
+          <div>
+            <label for="selPortas">Quantidade de portas (RJ45)</label>
+            <select id="selPortas">
+              <option value="24">24 portas</option>
+              <option value="48" selected>48 portas</option>
+            </select>
+          </div>
+          <div>
+            <label for="selSfp">Uplinks SFP</label>
+            <select id="selSfp">
+              <option value="0">0 SFP</option>
+              <option value="2" selected>2 SFP</option>
+              <option value="4">4 SFP</option>
+            </select>
+          </div>
+          <div>
+            <label>Carregar descrições (.txt/.csv)</label>
+            <input id="fileInput" type="file" accept=".txt,.csv" />
+            <small style="color:var(--muted);display:block;margin-top:6px;">Formato: <code>porta;descricao;status</code> — porta pode ser número (1..N) ou <code>SFP1</code>, <code>SFP2</code>. Status: UP/ON (verde), DOWN/OFF (vermelho).</small>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap: wrap; align-items:flex-end;">
+            <button class="btn" id="btnExport" type="button">Exportar TXT (este)</button>
+            <button class="btn ghost" id="btnExportLogsThis" type="button">Exportar Logs (este)</button>
+            <button class="btn ghost" id="btnExportBackupsThis" type="button">Exportar Backups (este)</button>
+<button class="btn" id="btnUpdate" type="button">🔄 Atualizar</button>
+<button class="btn" id="btnSendDrive" type="button">☁️ Enviar p/ Google Drive</button>
+            <button class="btn ghost" id="btnReset" type="button">Resetar portas</button>
+            <button class="btn ghost" id="btnClearSaved" type="button" title="Limpa o estado salvo deste switch">Limpar estado (este)</button>
+            <button class="btn ghost" id="btnClearLogsThis" type="button">Limpar logs (este)</button>
+            <button class="btn ghost" id="btnClearBackupsThis" type="button">Limpar backups (este)</button>
+          </div>
+        </div>
+      </div>
 
-    <div class="stats" id="stats"></div>
+      <div class="section-title">Portas RJ45</div>
+      <div id="portsGrid" class="ports-grid" aria-live="polite"></div>
 
-    <div class="help">
-      <h3>Formato do arquivo TXT/CSV</h3>
-      <p>Você pode usar <code>;</code>, <code>,</code>, <code>:</code> ou <em>tab</em> como separador. Linhas inválidas são ignoradas.</p>
-      <pre style="white-space:pre-wrap;background:#0b1220;border:1px solid var(--border);padding:10px;border-radius:10px;color:#d1fae5;">
-1;Uplink Core;UP
-2;AP-Recepção;UP
-3;Câmera-01;DOWN
-4;Sala de Reunião;ON
-5;Livre;OFF
-      </pre>
-      <p><strong>Campos:</strong> porta (1..24/48) | descrição | status opcional: <code>UP/ON/ATIVA</code> (verde) ou <code>DOWN/OFF/INATIVA</code> (vermelho)</p>
+      <div class="section-title" id="sfpTitle" style="display:none;">Uplinks SFP</div>
+      <div id="sfpGrid" class="sfp-grid" aria-live="polite" style="display:none;"></div>
+
+      <div id="stats" class="stats" role="status" aria-live="polite"></div>
+
+      <details class="logs" id="logsDetails">
+        <summary>Logs recentes (últimos 100)</summary>
+        <div id="logsView" style="margin-top:8px;"></div>
+      </details>
+    
+<footer class="app-footer">
+  Desenvolvido por <strong>Francis Nascimento</strong> © <span class="year"></span>
+</footer>
+<script>
+  document.querySelectorAll('.year').forEach(y=>y.textContent=new Date().getFullYear());
+</script>
+
     </div>
   </div>
 
 <script>
 (() => {
-  const portsGrid = document.getElementById('portsGrid');
-  const modeloSel = document.getElementById('modelo');
-  const fileInput = document.getElementById('fileInput');
-  const exportBtn = document.getElementById('exportBtn');
-  const resetBtn = document.getElementById('resetBtn');
-  const statsEl   = document.getElementById('stats');
 
-  // Estado
-  let portCount = 24;
-  /** { id: number, desc: string, up: boolean } */
-  let ports = [];
+  const ADMIN_PASSWORD = "1234";
+  let hasUnsavedChanges = false;
 
-  function initPorts(count) {
-    portCount = count;
-    ports = Array.from({ length: portCount }, (_, i) => ({ id: i + 1, desc: '', up: false }));
-    render();
+  function requirePassword() {
+    const pwd = prompt("🔐 Ação protegida. Informe a senha:");
+    if (pwd !== ADMIN_PASSWORD) {
+      alert("❌ Senha incorreta. Ação cancelada.");
+      return false;
+    }
+    return true;
   }
 
-  function render() {
+  /* =================== Estado e Storage =================== */
+  const NUM_SWITCHES = 7;
+
+  // Cada switch: { id, name, portCount, ports:[{id,desc,up}], sfpCount, sfps:[{id,desc,up}], logs:[entry] }
+  let switches = [];
+  let currentId = null;
+
+  // Backups (por switch) — "pasta /backups" interna
+  // Estrutura: { [swId]: [ { ts, snapshot } ... ] }
+  let backupsIndex = {};
+
+  const rackEl = document.getElementById('rack');
+  const modalEl = document.getElementById('modal');
+  const closeModalBtn = document.getElementById('closeModal');
+  const dialogTitle = document.getElementById('dialogTitle');
+
+  const selPortas = document.getElementById('selPortas');
+  const selSfp = document.getElementById('selSfp');
+  const fileInput = document.getElementById('fileInput');
+  const btnExport = document.getElementById('btnExport');
+  const btnExportLogsThis = document.getElementById('btnExportLogsThis');
+  const btnExportBackupsThis = document.getElementById('btnExportBackupsThis');
+  const btnReset = document.getElementById('btnReset');
+  const btnClearSaved = document.getElementById('btnClearSaved');
+  const btnClearLogsThis = document.getElementById('btnClearLogsThis');
+  const btnClearBackupsThis = document.getElementById('btnClearBackupsThis');
+
+  const btnExportAllInventory = document.getElementById('btnExportAllInventory');
+  const btnExportAllLogs = document.getElementById('btnExportAllLogs');
+  const btnExportAllBackups = document.getElementById('btnExportAllBackups');
+  const btnClearAll = document.getElementById('btnClearAll');
+  const btnClearAllLogs = document.getElementById('btnClearAllLogs');
+  const btnClearAllBackups = document.getElementById('btnClearAllBackups');
+
+  const portsGrid = document.getElementById('portsGrid');
+  const sfpGrid = document.getElementById('sfpGrid');
+  const sfpTitle = document.getElementById('sfpTitle');
+  const statsEl = document.getElementById('stats');
+  const logsView = document.getElementById('logsView');
+
+  const storageKey = (id) => `rack2960_switch_${id}`;
+  const backupsKey = `rack2960_backups_index`; // índice geral de backups
+
+  function createEmptyPorts(n){ return Array.from({length: n}, (_,i)=>({ id: i+1, desc:'', up:false })); }
+  function createEmptySfps(n){ return Array.from({length: n}, (_,i)=>({ id: i+1, desc:'', up:false })); }
+  function nowIso(){ return new Date().toISOString(); }
+  function tsHuman(ts){
+    try {
+      const d = new Date(ts);
+      const pad = (n)=> String(n).padStart(2,'0');
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    } catch { return ts; }
+  }
+
+  /* ========= Persistência ========= */
+  function loadSwitch(id){
+    try{
+      const raw = localStorage.getItem(storageKey(id));
+      if(!raw) return null;
+      const parsed = JSON.parse(raw);
+      if(!parsed) return null;
+      parsed.logs = Array.isArray(parsed.logs) ? parsed.logs : [];
+      return parsed;
+    }catch(_){ return null; }
+  }
+  function saveSwitch(sw){
+    try{ localStorage.setItem(storageKey(sw.id), JSON.stringify(sw)); }catch(_){}
+  }
+  function loadBackupsIndex(){
+    try{
+      const raw = localStorage.getItem(backupsKey);
+      if(!raw) return {};
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    }catch(_){ return {}; }
+  }
+  function saveBackupsIndex(){
+    try{ localStorage.setItem(backupsKey, JSON.stringify(backupsIndex)); }catch(_){}
+  }
+
+  function initSwitches(){
+    backupsIndex = loadBackupsIndex();
+    switches = [];
+    for(let i=1;i<=NUM_SWITCHES;i++){
+      const saved = loadSwitch(i);
+      if(saved && Array.isArray(saved.ports)){
+        switches.push({
+          id: i,
+          name: `S${i}`,
+          portCount: saved.portCount || (saved.ports?.length || 48),
+          ports: (saved.ports || createEmptyPorts(48)).map(p=>({ id: p.id, desc: p.desc||'', up: !!p.up })),
+          sfpCount: saved.sfpCount ?? (saved.sfps ? saved.sfps.length : 2),
+          sfps: (saved.sfps ? saved.sfps.map(s=>({ id: s.id, desc: s.desc||'', up: !!s.up })) : createEmptySfps(2)),
+          logs: saved.logs || [],
+        });
+      }else{
+        switches.push({
+          id: i,
+          name: `S${i}`,
+          portCount: 48,
+          ports: createEmptyPorts(48),
+          sfpCount: 2,
+          sfps: createEmptySfps(2),
+          logs: [],
+        });
+      }
+      if(!backupsIndex[i]) backupsIndex[i] = []; // inicializa lista de backups do switch
+    }
+    saveBackupsIndex();
+  }
+
+  /* =================== Logs (pasta /logs) =================== */
+  const MAX_LOGS = 5000; // por switch
+  function makeLog(sw, kind, id, action, message){
+    return { ts: nowIso(), sw: sw.name, kind, id, action, message };
+  }
+  function fmtLogLine(entry){
+    const scope = entry.kind === 'SWITCH' ? 'SWITCH' : `${entry.kind}[${entry.id}]`;
+    return `${tsHuman(entry.ts)} | ${entry.sw} | ${scope} | ${entry.action} | ${entry.message||''}`;
+  }
+  function appendLogToView(sw){
+    const last = sw.logs.slice(-100);
+    logsView.innerHTML = '';
+    for(const e of last){
+      const div = document.createElement('div');
+      div.className = 'logline';
+      div.textContent = fmtLogLine(e);
+      logsView.appendChild(div);
+    }
+  }
+  function logEvent(sw, kind, id, action, message){
+    const entry = makeLog(sw, kind, id, action, message);
+    sw.logs.push(entry);
+    if (sw.logs.length > MAX_LOGS) sw.logs = sw.logs.slice(-MAX_LOGS);
+    saveSwitch(sw);
+    if(currentId === sw.id) appendLogToView(sw);
+    // Após qualquer log, geramos backup automático do switch
+    createBackup(sw, `${kind}:${id||'-'} ${action}`);
+  }
+
+  /* =================== Backups (pasta /backups) =================== */
+  const MAX_BACKUPS_PER_SWITCH = 300; // retenção por switch
+  function snapshotOf(sw){
+    // Snapshot completo do switch (estado atual)
+    return {
+      ts: nowIso(),
+      swId: sw.id,
+      swName: sw.name,
+      portCount: sw.portCount,
+      sfpCount: sw.sfpCount,
+      ports: sw.ports.map(p => ({ id: p.id, desc: p.desc, up: p.up })),
+      sfps: sw.sfps.map(s => ({ id: s.id, desc: s.desc, up: s.up })),
+    };
+  }
+  function createBackup(sw, reason){
+    const snap = snapshotOf(sw);
+    const entry = { ts: snap.ts, reason, snapshot: snap };
+    backupsIndex[sw.id].push(entry);
+    if(backupsIndex[sw.id].length > MAX_BACKUPS_PER_SWITCH){
+      backupsIndex[sw.id] = backupsIndex[sw.id].slice(-MAX_BACKUPS_PER_SWITCH);
+    }
+    saveBackupsIndex();
+  }
+
+  
+function updateSystemInfo(){
+  let totalLogs = 0;
+  let totalBackups = 0;
+
+  switches.forEach(sw=>{
+    totalLogs += (sw.logs?.length || 0);
+    totalBackups += (backupsIndex[sw.id]?.length || 0);
+  });
+
+  const logEl = document.getElementById('logInfo');
+  const backupEl = document.getElementById('backupInfo');
+
+  if(logEl) logEl.textContent = totalLogs + " registros";
+  if(backupEl) backupEl.textContent = totalBackups + " snapshots";
+}
+
+
+  /* =================== Rack UI =================== */
+  function renderRack(){
+    Array.from(rackEl.querySelectorAll('.rack-unit')).forEach(n=>n.remove());
+
+    switches.forEach(sw=>{
+      const unitBtn = document.createElement('button');
+      unitBtn.className = 'rack-unit';
+      unitBtn.type = 'button';
+      unitBtn.setAttribute('aria-label', `Abrir painel do switch ${sw.name}`);
+      unitBtn.addEventListener('click', ()=> openPanel(sw.id));
+
+      const face = document.createElement('div');
+      face.className = 'faceplate';
+
+      const brand = document.createElement('div');
+      brand.className = 'brand';
+      brand.textContent = 'Cisco 2960';
+
+      const front = document.createElement('div');
+      front.className = 'front-ports';
+      const loops = (sw.portCount <= 24) ? 24 : 48;
+      for(let i=0;i<loops;i++){
+        const fp = document.createElement('div'); fp.className = 'fp'; front.appendChild(fp);
+      }
+
+      const rightSide = document.createElement('div');
+      rightSide.style.display = 'grid';
+      rightSide.style.gap = '8px';
+      const statusArea = document.createElement('div');
+      statusArea.className = 'status-area';
+      const led = document.createElement('div'); led.className = 'st-led';
+      const lcd = document.createElement('div'); lcd.className = 'lcd'; lcd.textContent = sw.name;
+      statusArea.appendChild(led); statusArea.appendChild(lcd);
+      rightSide.appendChild(statusArea);
+
+      if (sw.sfpCount > 0){
+        const sfpFace = document.createElement('div');
+        sfpFace.className = 'sfp-face';
+        for(let i=1;i<=Math.min(sw.sfpCount, 4);i++){
+          const slot = document.createElement('div'); slot.className = 'sfp-slot';
+          slot.title = `SFP${i}`;
+          sfpFace.appendChild(slot);
+        }
+        rightSide.appendChild(sfpFace);
+      }
+
+      face.appendChild(brand);
+      face.appendChild(front);
+      face.appendChild(rightSide);
+
+      const label = document.createElement('div');
+      label.className = 'unit-label';
+      label.textContent = `${sw.name} • ${sw.portCount}p • ${sw.sfpCount}xSFP`;
+
+      unitBtn.appendChild(face);
+      unitBtn.appendChild(label);
+      rackEl.appendChild(unitBtn);
+    });
+  }
+
+  /* =================== Painel (Modal) =================== */
+  function openPanel(id){
+    currentId = id;
+    const sw = switches.find(x=>x.id===id);
+    if(!sw) return;
+
+    dialogTitle.textContent = `Switch ${sw.name} — Cisco 2960`;
+    selPortas.value = String(sw.portCount);
+    selSfp.value = String(sw.sfpCount);
+    renderSwitch(sw);
+
+    modalEl.classList.add('show');
+    modalEl.setAttribute('aria-hidden', 'false');
+    closeModalBtn.focus();
+
+    // Log abertura do painel (gera backup)
+    logEvent(sw, 'SWITCH', null, 'open_panel', 'Painel aberto');
+  }
+  function closePanel(){
+    modalEl.classList.remove('show');
+    modalEl.setAttribute('aria-hidden', 'true');
+    currentId = null;
+  }
+  closeModalBtn.addEventListener('click', closePanel);
+  modalEl.addEventListener('click', (e)=>{ if(e.target === modalEl) closePanel(); });
+  window.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && modalEl.classList.contains('show')) closePanel(); });
+
+  /* =================== Render Switch =================== */
+  function renderSwitch(sw){
+    // RJ45
     portsGrid.innerHTML = '';
-    for (const p of ports) {
+    sw.ports.forEach(p=>{
       const card = document.createElement('div');
-      card.className = 'port';
+      card.className = 'port-card';
       card.setAttribute('data-port', String(p.id));
       card.title = p.desc ? `Porta ${p.id}: ${p.desc}` : `Porta ${p.id}`;
 
       const top = document.createElement('div');
       top.className = 'port-top';
-      const num = document.createElement('div');
-      num.className = 'port-num';
-      num.textContent = `Gi0/${p.id}`;
-      const led = document.createElement('div');
-      led.className = `led ${p.up ? 'green' : 'red'}`;
-      led.setAttribute('role', 'button');
-      led.setAttribute('aria-label', `Porta ${p.id} ${p.up ? 'ativa' : 'inativa'}`);
-      led.addEventListener('click', () => togglePort(p.id));
-      top.appendChild(num);
-      top.appendChild(led);
+      const num = document.createElement('div'); num.className='pnum'; num.textContent = `Gi0/${p.id}`;
+
+      const led = document.createElement('button');
+      led.type = 'button'; led.className = `led ${p.up ? 'green' : 'red'}`;
+      led.setAttribute('aria-pressed', String(p.up));
+      led.setAttribute('aria-label', `Porta ${p.id} ${p.up ? 'ativa' : 'inativa'} — alternar`);
+      led.addEventListener('click', ()=> toggleRj45(sw.id, p.id));
+
+      top.appendChild(num); top.appendChild(led);
 
       const mid = document.createElement('div');
-      mid.className = 'port-middle';
-      const rj = document.createElement('div');
-      rj.className = 'rj45';
-      const txt = document.createElement('div');
-      txt.textContent = p.up ? 'Link: ATIVO' : 'Link: INATIVO';
+      mid.className = 'port-mid';
+      const rj = document.createElement('div'); rj.className = 'rj45';
+      const txt = document.createElement('div'); txt.textContent = p.up ? 'Link: ATIVO' : 'Link: INATIVO';
       txt.style.color = p.up ? 'var(--green)' : 'var(--red)';
-      mid.appendChild(rj);
-      mid.appendChild(txt);
+      mid.appendChild(rj); mid.appendChild(txt);
 
       const input = document.createElement('input');
-      input.className = 'port-desc';
-      input.type = 'text';
-      input.placeholder = 'Descrição da porta (ex: AP-01, Câmera, PC-Recepção)';
+      input.className = 'pdesc'; input.type = 'text'; input.placeholder='Descrição (AP, Câmera, PC, Servidor...)';
       input.value = p.desc;
-      input.addEventListener('input', (e) => {
-        p.desc = e.target.value;
+      input.setAttribute('aria-label', `Descrição da porta ${p.id}`);
+      input.addEventListener('input', (ev)=>{
+        p.desc = ev.target.value;
         card.title = p.desc ? `Porta ${p.id}: ${p.desc}` : `Porta ${p.id}`;
-        updateStats();
+        updateStats(sw);
+        saveSwitch(sw);
+      });
+      input.addEventListener('blur', ()=>{
+        logEvent(sw, 'RJ45', p.id, 'desc_update', `Descrição: "${p.desc}"`);
       });
 
       card.appendChild(top);
       card.appendChild(mid);
       card.appendChild(input);
       portsGrid.appendChild(card);
+    });
+
+    // SFP
+    if (sw.sfpCount > 0){
+      sfpTitle.style.display = '';
+      sfpGrid.style.display = '';
+      sfpGrid.innerHTML = '';
+      sw.sfps.forEach(s=>{
+        const card = document.createElement('div');
+        card.className = 'sfp-card';
+        card.setAttribute('data-sfp', String(s.id));
+        card.title = s.desc ? `SFP${s.id}: ${s.desc}` : `SFP${s.id}`;
+
+        const top = document.createElement('div');
+        top.className = 'port-top';
+        const num = document.createElement('div'); num.className='pnum'; num.textContent = `SFP${s.id}`;
+
+        const led = document.createElement('button');
+        led.type = 'button'; led.className = `led ${s.up ? 'green' : 'red'}`;
+        led.setAttribute('aria-pressed', String(s.up));
+        led.setAttribute('aria-label', `SFP${s.id} ${s.up ? 'ativo' : 'inativo'} — alternar`);
+        led.addEventListener('click', ()=> toggleSfp(sw.id, s.id));
+
+        top.appendChild(num); top.appendChild(led);
+
+        const mid = document.createElement('div');
+        mid.className = 'sfp-mid';
+        const ico = document.createElement('div'); ico.className = 'sfp-icon';
+        const txt = document.createElement('div'); txt.textContent = s.up ? 'Link: ATIVO' : 'Link: INATIVO';
+        txt.style.color = s.up ? 'var(--green)' : 'var(--red)';
+        mid.appendChild(ico); mid.appendChild(txt);
+
+        const input = document.createElement('input');
+        input.className = 'pdesc'; input.type = 'text'; input.placeholder='Descrição (Uplink, Trunk, FO, etc.)';
+        input.value = s.desc;
+        input.setAttribute('aria-label', `Descrição da SFP ${s.id}`);
+        input.addEventListener('input', (ev)=>{
+          s.desc = ev.target.value;
+          card.title = s.desc ? `SFP${s.id}: ${s.desc}` : `SFP${s.id}`;
+          updateStats(sw);
+          saveSwitch(sw);
+        });
+        input.addEventListener('blur', ()=>{
+          logEvent(sw, 'SFP', s.id, 'desc_update', `Descrição: "${s.desc}"`);
+        });
+
+        card.appendChild(top);
+        card.appendChild(mid);
+        card.appendChild(input);
+        sfpGrid.appendChild(card);
+      });
+    } else {
+      sfpTitle.style.display = 'none';
+      sfpGrid.style.display = 'none';
+      sfpGrid.innerHTML = '';
     }
-    updateStats();
+
+    updateStats(sw);
+    appendLogToView(sw);
   }
 
-  function togglePort(id) {
-    const p = ports.find(x => x.id === id);
-    if (!p) return;
+  /* =================== Toggles + Estatísticas =================== */
+  function toggleRj45(swId, portId){
+    const sw = switches.find(x=>x.id===swId);
+    if(!sw) return;
+    const p = sw.ports.find(x=>x.id===portId);
+    if(!p) return;
     p.up = !p.up;
-    const card = portsGrid.querySelector(`.port[data-port="${id}"]`);
-    if (!card) return;
-    const led = card.querySelector('.led');
-    const linkTxt = card.querySelector('.port-middle div:nth-child(2)');
-    led.classList.toggle('green', p.up);
-    led.classList.toggle('red', !p.up);
-    led.setAttribute('aria-label', `Porta ${p.id} ${p.up ? 'ativa' : 'inativa'}`);
-    linkTxt.textContent = p.up ? 'Link: ATIVO' : 'Link: INATIVO';
-    linkTxt.style.color = p.up ? 'var(--green)' : 'var(--red)';
-    updateStats();
+    hasUnsavedChanges = true;
+
+    const card = portsGrid.querySelector(`.port-card[data-port="${portId}"]`);
+    if(card){
+      const led = card.querySelector('.led');
+      const txt = card.querySelector('.port-mid div:nth-child(2)');
+      led.classList.toggle('green', p.up);
+      led.classList.toggle('red', !p.up);
+      led.setAttribute('aria-pressed', String(p.up));
+      led.setAttribute('aria-label', `Porta ${p.id} ${p.up ? 'ativa' : 'inativa'} — alternar`);
+      txt.textContent = p.up ? 'Link: ATIVO' : 'Link: INATIVO';
+      txt.style.color = p.up ? 'var(--green)' : 'var(--red)';
+    }
+    updateStats(sw);
+    saveSwitch(sw);
+    logEvent(sw, 'RJ45', portId, 'toggle', `Estado: ${p.up ? 'UP' : 'DOWN'}`);
+  }
+  function toggleSfp(swId, sfpId){
+    const sw = switches.find(x=>x.id===swId);
+    if(!sw) return;
+    const s = sw.sfps.find(x=>x.id===sfpId);
+    if(!s) return;
+    s.up = !s.up;
+
+    const card = sfpGrid.querySelector(`.sfp-card[data-sfp="${sfpId}"]`);
+    if(card){
+      const led = card.querySelector('.led');
+      const txt = card.querySelector('.sfp-mid div:nth-child(2)');
+      led.classList.toggle('green', s.up);
+      led.classList.toggle('red', !s.up);
+      led.setAttribute('aria-pressed', String(s.up));
+      led.setAttribute('aria-label', `SFP${s.id} ${s.up ? 'ativo' : 'inativo'} — alternar`);
+      txt.textContent = s.up ? 'Link: ATIVO' : 'Link: INATIVO';
+      txt.style.color = s.up ? 'var(--green)' : 'var(--red)';
+    }
+    updateStats(sw);
+    saveSwitch(sw);
+    logEvent(sw, 'SFP', sfpId, 'toggle', `Estado: ${s.up ? 'UP' : 'DOWN'}`);
   }
 
-  function updateStats() {
-    const up = ports.filter(p => p.up).length;
-    const withDesc = ports.filter(p => p.desc.trim() !== '').length;
-    statsEl.innerHTML = `
-      <strong>Resumo:</strong>
-      Portas: <strong>${ports.length}</strong> |
-      Ativas (LED verde): <strong style="color:var(--green)">${up}</strong> |
-      Com descrição: <strong>${withDesc}</strong>
-    `;
+  function updateStats(sw){
+    const upRj = sw.ports.filter(p=>p.up).length;
+    const upSfp = sw.sfps.filter(s=>s.up).length;
+    const withDesc = sw.ports.filter(p=>p.desc.trim()!=='').length + sw.sfps.filter(s=>s.desc.trim()!=='').length;
+    statsEl.innerHTML = `<strong>Resumo (${sw.name}):</strong>
+      RJ45: <strong>${sw.ports.length}</strong> (Ativas <span style="color:var(--green)">${upRj}</span>) |
+      SFP: <strong>${sw.sfpCount}</strong> (Ativas <span style="color:var(--green)">${upSfp}</span>) |
+      Com descrição: <strong>${withDesc}</strong>`;
   }
 
-  function parseStatusToken(tokenRaw) {
-    if (!tokenRaw) return null;
-    const t = tokenRaw.trim().toLowerCase();
-    if (['up','on','ativa','ativada','link','yes','true','1'].includes(t)) return true;
-    if (['down','off','inativa','desligada','no','false','0'].includes(t)) return false;
+  /* =================== Importar/Exportar Inventário =================== */
+  function parseStatusToken(tRaw){
+    if(!tRaw) return null;
+    const t = String(tRaw).trim().toLowerCase();
+    if(['up','on','ativa','ativada','link','yes','true','1'].includes(t)) return true;
+    if(['down','off','inativa','desligada','no','false','0'].includes(t)) return false;
     return null;
   }
-
-  function loadFromText(text) {
-    const lines = text.split(/\r?\n/);
+  function importTextToSwitch(sw, text){
+    const lines = String(text).split(/\r?\n/);
     let applied = 0, skipped = 0;
-    for (const raw of lines) {
+    for(const raw of lines){
       const line = raw.trim();
-      if (!line || line.startsWith('#') || line.startsWith('//')) continue;
+      if(!line || line.startsWith('#') || line.startsWith('//')) continue;
       const parts = line.split(/\s*[;,:|\t]\s*/);
-      if (parts.length < 2) { skipped++; continue; }
+      if(parts.length < 2){ skipped++; continue; }
 
-      const portId = parseInt(parts[0], 10);
-      if (!Number.isFinite(portId) || portId < 1 || portId > portCount) { skipped++; continue; }
+      const portField = (parts[0]||'').trim();
+      const mSfp = /^sfp\s*(\d+)$/i.exec(portField);
+      const desc = (parts[1]||'').trim();
+      const stTok = parts[2] || '';
+      const upParsed = parseStatusToken(stTok);
 
-      const desc = (parts[1] || '').trim();
-      const statusTok = parts[2] || '';
-      const upParsed = parseStatusToken(statusTok);
+      if (mSfp){
+        const idx = parseInt(mSfp[1],10);
+        if (!Number.isFinite(idx) || idx < 1 || idx > sw.sfpCount){ skipped++; continue; }
+        const s = sw.sfps.find(x=>x.id===idx);
+        if (!s){ skipped++; continue; }
+        s.desc = desc;
+        if (upParsed !== null) s.up = upParsed;
+        applied++;
+        continue;
+      }
 
-      const p = ports.find(x => x.id === portId);
-      if (!p) { skipped++; continue; }
-
+      const portId = parseInt(portField,10);
+      if(!Number.isFinite(portId) || portId<1 || portId>sw.portCount){ skipped++; continue; }
+      const p = sw.ports.find(x=>x.id===portId);
+      if(!p){ skipped++; continue; }
       p.desc = desc;
-      if (upParsed !== null) p.up = upParsed;
+      if(upParsed !== null) p.up = upParsed;
       applied++;
     }
-    render();
-    alert(`Importação concluída:\nAplicadas: ${applied}\nIgnoradas: ${skipped}`);
+    saveSwitch(sw);
+    // Gera log + backup
+    logEvent(sw, 'SWITCH', null, 'import', `Aplicadas: ${applied}, Ignoradas: ${skipped}`);
+    return { applied, skipped };
   }
 
-  function exportToText() {
-    const lines = ports.map(p => `${p.id};${(p.desc || '').replace(/[\r\n]/g,' ').trim()};${p.up ? 'UP' : 'DOWN'}`);
-    const blob = new Blob([lines.join('\n') + '\n'], { type: 'text/plain;charset=utf-8' });
+  function exportSwitchToText(sw){
+    const lines = [];
+    for(const p of sw.ports){
+      lines.push(`${p.id};${(p.desc||'').replace(/[\r\n]/g,' ').trim()};${p.up?'UP':'DOWN'}`);
+    }
+    for(const s of sw.sfps){
+      lines.push(`SFP${s.id};${(s.desc||'').replace(/[\r\n]/g,' ').trim()};${s.up?'UP':'DOWN'}`);
+    }
+    const blob = new Blob([lines.join('\n')+'\n'], { type:'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
-    a.href = url;
-    a.download = `cisco-2960-portas-${portCount}p-${stamp}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    a.href = url; a.download = `switch-${sw.name}-${sw.portCount}p-${sw.sfpCount}sfp-${stamp}.txt`;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   }
 
-  // Eventos
-  modeloSel.addEventListener('change', () => {
-    const n = parseInt(modeloSel.value, 10);
-    const snapshot = ports.slice(0, n).map(p => ({ ...p }));
-    initPorts(n);
-    for (let i = 0; i < Math.min(snapshot.length, ports.length); i++) {
-      ports[i].desc = snapshot[i].desc;
-      ports[i].up   = snapshot[i].up;
+  function exportAllInventory(){
+    const lines = [];
+    lines.push(`# Export geral do rack (todos os switches)`);
+    lines.push(`# Formato: Switch;Porta;Descricao;Status;Tipo`);
+    lines.push(`# Porta RJ45 é numérica (1..N). SFPs são SFP1..SFPn. Tipo = RJ45|SFP`);
+    for(const sw of switches){
+      lines.push(`# ==== ${sw.name} (${sw.portCount}p, ${sw.sfpCount}xSFP) ====`);
+      for(const p of sw.ports){
+        lines.push(`${sw.name};${p.id};${(p.desc||'').replace(/[\r\n]/g,' ').trim()};${p.up?'UP':'DOWN'};RJ45`);
+      }
+      for(const s of sw.sfps){
+        lines.push(`${sw.name};SFP${s.id};${(s.desc||'').replace(/[\r\n]/g,' ').trim()};${s.up?'UP':'DOWN'};SFP`);
+      }
     }
-    render();
+    const blob = new Blob([lines.join('\n')+'\n'], { type:'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+    a.href = url; a.download = `rack-7-switches-ALL-${stamp}.txt`;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  }
+
+  /* =================== Exportar/limpar Logs =================== */
+  function exportLogsText(sw){
+    const lines = sw.logs.map(e => `${fmtLogLine(e)}`);
+    const blob = new Blob([lines.join('\n')+'\n'], { type:'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+    a.href = url; a.download = `logs-${sw.name}-${stamp}.log`;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  }
+  function exportLogsAll(){
+    const lines = [];
+    lines.push(`# Logs gerais do rack (todos os switches)`);
+    lines.push(`# Formato: YYYY-MM-DD HH:mm:ss | SX | SCOPE | ACTION | MESSAGE`);
+    for(const sw of switches){
+      lines.push('');
+      lines.push(`# ==== ${sw.name} ====`);
+      for(const e of sw.logs) lines.push(fmtLogLine(e));
+    }
+    const blob = new Blob([lines.join('\n')+'\n'], { type:'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+    a.href = url; a.download = `rack-logs-ALL-${stamp}.log`;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  }
+  function clearLogs(sw){
+    sw.logs = [];
+    saveSwitch(sw);
+    if(currentId === sw.id) appendLogToView(sw);
+  }
+  function clearLogsAll(){
+    for(const sw of switches){ sw.logs = []; saveSwitch(sw); }
+    if(currentId != null){
+      const sw = switches.find(x=>x.id===currentId);
+      if(sw) appendLogToView(sw);
+    }
+  }
+
+  /* =================== Exportar/limpar Backups =================== */
+  function exportBackupsThis(sw){
+    const list = backupsIndex[sw.id] || [];
+    // JSON de snapshots desse switch
+    const blob = new Blob([JSON.stringify({ switch: sw.name, backups: list }, null, 2)], { type:'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+    a.href = url; a.download = `backups-${sw.name}-${stamp}.json`;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  }
+  function exportBackupsAll(){
+    const bundle = {};
+    for(const sw of switches){
+      bundle[sw.name] = backupsIndex[sw.id] || [];
+    }
+    const blob = new Blob([JSON.stringify({ generatedAt: nowIso(), backups: bundle }, null, 2)], { type:'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+    a.href = url; a.download = `rack-backups-ALL-${stamp}.json`;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  }
+  function clearBackupsThis(sw){
+    backupsIndex[sw.id] = [];
+    saveBackupsIndex();
+  }
+  function clearBackupsAll(){
+    for(const sw of switches){
+      backupsIndex[sw.id] = [];
+    }
+    saveBackupsIndex();
+  }
+
+  /* =================== Eventos – Painel (switch atual) =================== */
+  selPortas.addEventListener('change', ()=>{
+    if(currentId == null) return;
+    const sw = switches.find(x=>x.id===currentId);
+    if(!sw) return;
+    const n = parseInt(selPortas.value,10);
+    const snap = sw.ports.slice(0, n).map(p=>({...p}));
+    sw.portCount = n;
+    sw.ports = createEmptyPorts(n);
+    for(let i=0;i<Math.min(n, snap.length);i++){
+      sw.ports[i].desc = snap[i].desc;
+      sw.ports[i].up = snap[i].up;
+    }
+    saveSwitch(sw);
+    renderSwitch(sw);
+    renderRack(); updateSystemInfo();
+    logEvent(sw, 'SWITCH', null, 'change_portcount', `RJ45: ${n}`);
   });
 
-  fileInput.addEventListener('change', () => {
+  selSfp.addEventListener('change', ()=>{
+    if(currentId == null) return;
+    const sw = switches.find(x=>x.id===currentId);
+    if(!sw) return;
+    const n = parseInt(selSfp.value,10);
+    const snap = sw.sfps.slice(0, n).map(s=>({...s}));
+    sw.sfpCount = n;
+    sw.sfps = createEmptySfps(n);
+    for(let i=0;i<Math.min(n, snap.length);i++){
+      sw.sfps[i].desc = snap[i].desc;
+      sw.sfps[i].up = snap[i].up;
+    }
+    saveSwitch(sw);
+    renderSwitch(sw);
+    renderRack(); updateSystemInfo();
+    logEvent(sw, 'SWITCH', null, 'change_sfpcount', `SFP: ${n}`);
+  });
+
+  fileInput.addEventListener('change', ()=>{
+    if(currentId == null) return;
+    const sw = switches.find(x=>x.id===currentId);
+    if(!sw) return;
     const f = fileInput.files && fileInput.files[0];
-    if (!f) return;
+    if(!f) return;
     const reader = new FileReader();
-    reader.onload = () => loadFromText(String(reader.result || ''));
+    reader.onload = ()=>{
+      const { applied, skipped } = importTextToSwitch(sw, String(reader.result||''));
+      renderSwitch(sw);
+      alert(`Importação (${sw.name}) concluída:\nAplicadas: ${applied}\nIgnoradas: ${skipped}`);
+    };
     reader.readAsText(f, 'utf-8');
     fileInput.value = '';
   });
 
-  exportBtn.addEventListener('click', exportToText);
-  resetBtn.addEventListener('click', () => {
-    if (!confirm('Deseja resetar todas as portas para INATIVO (vermelho) e limpar descrições?')) return;
-    ports.forEach(p => { p.up = false; p.desc = ''; });
-    render();
+  btnExport.addEventListener('click', ()=>{
+    if(currentId == null) return;
+    const sw = switches.find(x=>x.id===currentId);
+    if(!sw) return;
+    exportSwitchToText(sw);
+    logEvent(sw, 'SWITCH', null, 'export_switch', 'Inventário TXT exportado');
+  });
+  btnExportLogsThis.addEventListener('click', ()=>{
+    if(currentId == null) return;
+    const sw = switches.find(x=>x.id===currentId);
+    if(!sw) return;
+    exportLogsText(sw);
+  });
+  btnExportBackupsThis.addEventListener('click', ()=>{
+    if(currentId == null) return;
+    const sw = switches.find(x=>x.id===currentId);
+    if(!sw) return;
+    exportBackupsThis(sw);
+  });
+  btnReset.addEventListener('click', ()=>{
+    if (!requirePassword()) return;
+    if(currentId == null) return;
+    const sw = switches.find(x=>x.id===currentId);
+    if(!sw) return;
+    if(!confirm(`Resetar todas as portas de ${sw.name} para INATIVO (vermelho) e limpar descrições?`)) return;
+    sw.ports.forEach(p=>{ p.up=false; p.desc=''; });
+    sw.sfps.forEach(s=>{ s.up=false; s.desc=''; });
+    saveSwitch(sw);
+    renderSwitch(sw);
+    logEvent(sw, 'SWITCH', null, 'reset', 'RJ45 e SFP limpos');
+  });
+  btnClearSaved.addEventListener('click', ()=>{
+    if (!requirePassword()) return;
+    if(currentId == null) return;
+    const sw = switches.find(x=>x.id===currentId);
+    if(!sw) return;
+    if(!confirm(`Apagar estado salvo do ${sw.name}?`)) return;
+    try{ localStorage.removeItem(storageKey(sw.id)); }catch(_){}
+    alert('Estado salvo removido. A tela atual permanece até fechar/reabrir.');
+    logEvent(sw, 'SWITCH', null, 'clear_saved_switch', 'Estado salvo removido');
+  });
+  btnClearLogsThis.addEventListener('click', ()=>{
+    if (!requirePassword()) return;
+    if(currentId == null) return;
+    const sw = switches.find(x=>x.id===currentId);
+    if(!sw) return;
+    if(!confirm(`Apagar logs do ${sw.name}?`)) return;
+    clearLogs(sw);
+  });
+  btnClearBackupsThis.addEventListener('click', ()=>{
+    if (!requirePassword()) return;
+    if(currentId == null) return;
+    const sw = switches.find(x=>x.id===currentId);
+    if(!sw) return;
+    if(!confirm(`Apagar backups do ${sw.name}?`)) return;
+    clearBackupsThis(sw);
   });
 
-  // Inicializa
-  initPorts(24);
+  /* =================== Eventos – Globais =================== */
+  btnExportAllInventory.addEventListener('click', exportAllInventory);
+  btnExportAllLogs.addEventListener('click', exportLogsAll);
+  btnExportAllBackups.addEventListener('click', exportBackupsAll);
+
+  btnClearAll.addEventListener('click', ()=>{
+    if (!requirePassword()) return;
+    if(!confirm('Remover TODOS os estados salvos de S1 a S7?')) return;
+    try{ for(let i=1;i<=NUM_SWITCHES;i++) localStorage.removeItem(storageKey(i)); }catch(_){}
+    alert('Todos os estados salvos foram removidos.');
+  });
+  btnClearAllLogs.addEventListener('click', ()=>{
+    if (!requirePassword()) return;
+    if(!confirm('Apagar todos os logs (S1…S7)?')) return;
+    clearLogsAll();
+  });
+  btnClearAllBackups.addEventListener('click', ()=>{
+    if (!requirePassword()) return;
+    if(!confirm('Apagar todos os backups (S1…S7)?')) return;
+    clearBackupsAll();
+  });
+
+  
+  const btnUpdate = document.getElementById('btnUpdate');
+  btnUpdate.addEventListener('click', ()=>{
+    if(currentId == null) return;
+    const sw = switches.find(x=>x.id===currentId);
+    if(!sw) return;
+
+    saveSwitch(sw);
+    hasUnsavedChanges = false;
+
+    logEvent(sw, 'SWITCH', null, 'update', 'Atualização manual (log + backup interno)');
+    createBackup(sw, 'Atualização manual');
+
+    alert(`🔄 ${sw.name} atualizado com sucesso.`);
+  });
+
+
+  
+// 🚫 Impede sair da página sem atualizar/salvar
+window.addEventListener('beforeunload', function (e) {
+  if (hasUnsavedChanges) {
+    e.preventDefault();
+    e.returnValue = 'Existem alterações não atualizadas.';
+  }
+});
+
+
+
+  const btnSendDrive = document.getElementById('btnSendDrive');
+  btnSendDrive.addEventListener('click', ()=>{
+    if(currentId == null) return;
+    const sw = switches.find(x=>x.id===currentId);
+    if(!sw) return;
+
+    saveSwitch(sw);
+    hasUnsavedChanges = false;
+
+    logEvent(sw, 'SWITCH', null, 'export_drive', 'Arquivos preparados para Google Drive');
+
+    exportLogsText(sw);
+    exportBackupsThis(sw);
+
+    alert(
+      '☁️ Arquivos gerados!\n' +
+      'Os downloads iniciaram automaticamente.\n' +
+      'Envie-os para a pasta desejada no Google Drive.'
+    );
+  });
+
+
+/* =================== Boot =================== */
+  initSwitches();
+  renderRack(); updateSystemInfo();
 })();
 </script>
+
+<footer style="
+  margin-top:40px;
+  padding:16px;
+  text-align:center;
+  font-size:12px;
+  color:var(--muted);
+  border-top:1px solid var(--border);
+  background:color-mix(in oklab, var(--panel) 85%, transparent);
+">
+  Desenvolvido por <strong>Francis Nascimento</strong> © <span id="year"></span>
+</footer>
+<script>
+  document.getElementById('year').textContent = new Date().getFullYear();
+</script>
+
+
+<footer class="app-footer">
+  Desenvolvido por <strong>Francis Nascimento</strong> © <span class="year"></span>
+</footer>
+<script>
+  document.querySelectorAll('.year').forEach(y=>y.textContent=new Date().getFullYear());
+</script>
+
 </body>
 </html>
